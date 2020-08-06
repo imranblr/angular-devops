@@ -1,0 +1,61 @@
+image: 10.2.123.55:5555/root/angular-devops:latest
+ 
+stages:
+  - build
+  - k8-deploy
+
+build:nodejs:
+  stage: 'build'
+  script:
+    - nodejs -v
+    - npm -v
+    - apt-get install rsync -y > /dev/null
+    - ng new angular-devops > /dev/null
+    - /bin/cp -f package.json angular-devops/package.json
+    - /usr/bin/rsync -a src/ angular-devops/src/
+    - /usr/bin/rsync -a angular-devops/ .
+    - ng build --prod > /dev/null
+    - ls -la -F dist/angular-devops/
+    - /bin/mkdir html
+    - /usr/bin/rsync -a dist/angular-devops/ html/
+    - /bin/ls -la -F html/
+
+  cache:
+    paths:
+      - node_modules/
+  artifacts:
+    when: on_success
+    name: '$CI_JOB_NAME-$CI_COMMIT_REF_NAME'
+    paths:
+      - html/
+      
+k8-deploy:
+ image: 10.2.123.55:5555/root/nginx-kubernetes-deployment:ubuntu_kubectl
+ stage: 'k8-deploy'
+ dependencies:
+        - build:nodejs
+ services:
+        - docker:dind
+ cache:
+    key: “builder”
+    paths:
+        - ./.build
+ script:
+    -   /bin/cp template/nginx-deploy-service angularweb.yaml 
+    -   /bin/sed -i "s/NODEJS-APP-.*$/nodejs-app-$CI_JOB_NAME-$CI_COMMIT_REF_NAME/g" angularweb.yaml
+    -   /bin/cat angularweb.yaml
+    -   kubectl config set-cluster kubernetes --server="https://10.2.123.83:6443" --insecure-skip-tls-verify=true
+    -   kubectl config set-credentials kubernetes-admin --token="eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImRhc2hib2FyZC10b2tlbi1ncDd3cSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJkYXNoYm9hcmQiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI5MjY5MDhkMS0wYzFkLTExZWEtYTJmOC0wMDBjMjk0YTBjMDMiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6ZGVmYXVsdDpkYXNoYm9hcmQifQ.bXLckFIlnInXPYE18DCNwi2pQ2N-trfc1eTWoUpMiPZr_60mHg6a1R9LpKBkyu6sR0uYUyDobVC0wes-IQu4NjtmivsNa0oUFw-QdYRta-RwFdudCDBTPiDfMrDuMCeLxax9qgiHzvoitOE0bTSrP1w32BP1-VnfSMlsLCC86WmSz5NbGlNPptc02Nx8xvD3Re5enL8ZQe9NWYO7ccW0QtilRUFiBPf07Xv5U5A_SLbhAFrB9514X6VLu_pq6RWaS8GVLWlH3GujYnfSIg2I9qiS6lVRgSz3L_mYd_-_IqDArG1bwFotWQ14suET0ehSQmiVaDMMcmTH3oF4ZVnfoA"
+    -   kubectl config set-context default-context --cluster=kubernetes --user=kubernetes-admin
+    -   kubectl config use-context default-context
+    -   kubectl get cs
+    -   kubectl apply -f angularweb.yaml
+    -   /bin/ls -la -F html/
+    -   for pod in `kubectl get pods -o=name | grep angularweb| sed "s/^.\{4\}//"`; do echo "copying artifacts to $pod"; kubectl cp html $pod:/usr/share/nginx/; done
+
+ environment:
+    name: staging
+    url: http://10.2.123.83:32760/
+ when: manual
+ only:
+  - master
