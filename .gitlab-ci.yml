@@ -6,8 +6,11 @@ stages:
   - build
   - k8-deploy
 
-build:nodejs:
-  stage: 'build'
+build:
+ image: nodejs:latest
+ stage: 'build'
+ services:
+        - docker:dind
   script:
     - /bin/cp -f package.json angular-devops/package.json
     - /usr/bin/rsync -a src/ angular-devops/src/
@@ -31,7 +34,7 @@ k8-deploy:
  image: alpine/k8s:1.13.12
  stage: 'k8-deploy'
  dependencies:
-        - build:nodejs
+        - build
  services:
         - docker:dind
  cache:
