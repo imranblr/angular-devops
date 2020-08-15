@@ -1,10 +1,12 @@
-image: 10.2.123.55:5555/root/angular-devops:latest
- 
+IMAGE_NAME: $CI_REGISTRY/root/angular-kubernetes-deployment
+TOKEN: "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi11c2VyLXRva2VuLTZ6MjYyIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFkbWluLXVzZXIiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiIwZDE0NWI5Yy1iMjY2LTQ2YWYtYTk2NC1lOGYzYzhmZWM3ZmMiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZS1zeXN0ZW06YWRtaW4tdXNlciJ9.OVpaM_lcOl5bPx2lJgZY72T-tfqbu_aEFSLvbbmSSoXVDYSUUSUSwk1PHgrfDglwwwt6CHV5Z1Vc7S6iII2olVTWppMu7rS32d-IT0DNECpC6ze8aAZ_XxouIibjByudBp4jUVntGvU-FA-GWIHh1Z7MDonYNsOuBCO2TOTQu30SG4Xf5N5WkBk8KjdbQBhZuRi8e_njqgWPW4g-gVrSPfuZXrnll5Pi7uMak7-nD3l5Ov-inPSv6kw1a5RTj3j7rObaW4SzkFRmWH9mlVSqL6emuiewhrjfiDZ4o_Zg_GWAHq9YHK_j_rVSZWEVPwjcBoWmolfMYiMT-N3rA3-6gg"
+
+
 stages:
   - build
   - k8-deploy
 
-build:nodejs:
+build:dockette/nodejs:
   stage: 'build'
   script:
     - nodejs -v
@@ -30,10 +32,10 @@ build:nodejs:
       - html/
       
 k8-deploy:
- image: 10.2.123.55:5555/root/nginx-kubernetes-deployment:ubuntu_kubectl
+ image: alpine/k8s:1.13.12
  stage: 'k8-deploy'
  dependencies:
-        - build:nodejs
+        - build:dockette/nodejs
  services:
         - docker:dind
  cache:
@@ -41,21 +43,20 @@ k8-deploy:
     paths:
         - ./.build
  script:
-    -   /bin/cp template/nginx-deploy-service angularweb.yaml 
-    -   /bin/sed -i "s/NODEJS-APP-.*$/nodejs-app-$CI_JOB_NAME-$CI_COMMIT_REF_NAME/g" angularweb.yaml
-    -   /bin/cat angularweb.yaml
-    -   kubectl config set-cluster kubernetes --server="https://10.2.123.83:6443" --insecure-skip-tls-verify=true
-    -   kubectl config set-credentials kubernetes-admin --token="eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImRhc2hib2FyZC10b2tlbi1ncDd3cSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJkYXNoYm9hcmQiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI5MjY5MDhkMS0wYzFkLTExZWEtYTJmOC0wMDBjMjk0YTBjMDMiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6ZGVmYXVsdDpkYXNoYm9hcmQifQ.bXLckFIlnInXPYE18DCNwi2pQ2N-trfc1eTWoUpMiPZr_60mHg6a1R9LpKBkyu6sR0uYUyDobVC0wes-IQu4NjtmivsNa0oUFw-QdYRta-RwFdudCDBTPiDfMrDuMCeLxax9qgiHzvoitOE0bTSrP1w32BP1-VnfSMlsLCC86WmSz5NbGlNPptc02Nx8xvD3Re5enL8ZQe9NWYO7ccW0QtilRUFiBPf07Xv5U5A_SLbhAFrB9514X6VLu_pq6RWaS8GVLWlH3GujYnfSIg2I9qiS6lVRgSz3L_mYd_-_IqDArG1bwFotWQ14suET0ehSQmiVaDMMcmTH3oF4ZVnfoA"
-    -   kubectl config set-context default-context --cluster=kubernetes --user=kubernetes-admin
+    -   kubectl config set-cluster kubernetes --server="https://192.168.100.14:6443" --insecure-skip-tls-verify=true
+    -   kubectl config set-credentials admin-user --token=$TOKEN
+    -   kubectl config set-context default-context --cluster=kubernetes --user=admin-user
     -   kubectl config use-context default-context
     -   kubectl get cs
+    -   /bin/cp template/nginx-deploy-service angularweb.yaml 
     -   kubectl apply -f angularweb.yaml
+    -   sleep 30
     -   /bin/ls -la -F html/
     -   for pod in `kubectl get pods -o=name | grep angularweb| sed "s/^.\{4\}//"`; do echo "copying artifacts to $pod"; kubectl cp html $pod:/usr/share/nginx/; done
 
  environment:
     name: staging
-    url: http://10.2.123.83:32760/
+    url: http://192.168.100.14:30036/
  when: manual
  only:
   - master
