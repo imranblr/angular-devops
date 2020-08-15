@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: angularweb
-          image: 10.2.123.55:5555/root/nginx-kubernetes-deployment
+          image: gitlab.example.com:5050/root/angular-kubernetes-deployment
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
