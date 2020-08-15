@@ -5,7 +5,7 @@ variables:
 stages:
   - build
   - k8-deploy
-
+  
 build:
  image: nodejs:latest
  stage: 'build'
