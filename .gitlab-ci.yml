@@ -6,13 +6,9 @@ stages:
   - build
   - k8-deploy
 
-build:dockette/nodejs:
+build:nodejs:
   stage: 'build'
   script:
-    - nodejs -v
-    - npm -v
-    - apt-get install rsync -y > /dev/null
-    - ng new angular-devops > /dev/null
     - /bin/cp -f package.json angular-devops/package.json
     - /usr/bin/rsync -a src/ angular-devops/src/
     - /usr/bin/rsync -a angular-devops/ .
@@ -35,7 +31,7 @@ k8-deploy:
  image: alpine/k8s:1.13.12
  stage: 'k8-deploy'
  dependencies:
-        - build:dockette/nodejs
+        - build:nodejs
  services:
         - docker:dind
  cache:
